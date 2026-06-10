@@ -232,9 +232,9 @@ footer a{color:var(--green-dark);font-weight:700;text-decoration:none}
   <a href="#" class="logo">klever<span>.toy</span></a>
   <div class="nav-search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="text" id="searchInput" placeholder="Поиск товара...">
+    <input type="text" id="searchInput" placeholder="Поиск товара..." oninput="window.renderGrid && window.renderGrid()">
   </div>
-  <select class="nav-sort" id="sortSelect">
+  <select class="nav-sort" id="sortSelect" onchange="window.renderGrid && window.renderGrid()">
     <option value="default">По умолчанию</option>
     <option value="price_asc">Цена ↑</option>
     <option value="price_desc">Цена ↓</option>
@@ -356,7 +356,7 @@ function getSorted(arr) {
 }
 
 // === RENDER ===
-function renderGrid() {
+window.renderGrid = function renderGrid() {
   const search = document.getElementById('searchInput').value.toLowerCase().trim();
   let filtered = products.filter(p => {
     const matchCat = currentFilter === 'all' || p.cat === currentFilter;
