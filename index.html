@@ -232,9 +232,9 @@ footer a{color:var(--green-dark);font-weight:700;text-decoration:none}
   <a href="#" class="logo">klever<span>.toy</span></a>
   <div class="nav-search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="text" id="searchInput" placeholder="Поиск товара..." oninput="renderGrid()">
+    <input type="text" id="searchInput" placeholder="Поиск товара...">
   </div>
-  <select class="nav-sort" id="sortSelect" onchange="renderGrid()">
+  <select class="nav-sort" id="sortSelect">
     <option value="default">По умолчанию</option>
     <option value="price_asc">Цена ↑</option>
     <option value="price_desc">Цена ↓</option>
@@ -286,6 +286,17 @@ footer a{color:var(--green-dark);font-weight:700;text-decoration:none}
 </footer>
 
 <!-- FIREBASE -->
+<script>
+// Bridge: allows HTML onclick="setFilter(...)" to work before module loads
+window._filterQueue = [];
+window.setFilter = function(cat, el) {
+  if (window._filterReady) {
+    window._doFilter(cat, el);
+  } else {
+    window._filterQueue.push([cat, el]);
+  }
+};
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -322,12 +333,18 @@ onSnapshot(colRef, (snapshot) => {
 });
 
 // === FILTER / SORT ===
-window.setFilter = function(cat, el) {
+window._doFilter = function(cat, el) {
   currentFilter = cat;
   document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
+  if (el) el.classList.add('active');
   renderGrid();
 };
+window._filterReady = true;
+// flush any queued calls
+if (window._filterQueue && window._filterQueue.length) {
+  window._filterQueue.forEach(([cat, el]) => window._doFilter(cat, el));
+  window._filterQueue = [];
+}
 
 function getSorted(arr) {
   const sort = document.getElementById('sortSelect').value;
@@ -573,13 +590,31 @@ window.deleteProduct = async function() {
 };
 
 // === EXPORT ===
+// === BIND NON-MODULE EVENTS ===
+document.getElementById('sortSelect').addEventListener('change', renderGrid);
+document.getElementById('searchInput').addEventListener('input', renderGrid);
+window.renderGrid = renderGrid;
+
 window.exportData = function() {
-  const blob = new Blob([JSON.stringify(products, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `klever_backup_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  showToast('⬇️ Копия скачана','green');
+  try {
+    const json = JSON.stringify(products, null, 2);
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `klever_backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+    showToast('⬇️ Копия скачана','green');
+  } catch(e) {
+    // Fallback: открыть в новой вкладке и сохранить вручную
+    const json = JSON.stringify(products, null, 2);
+    const w = window.open('', '_blank');
+    w.document.write('<pre style="font-size:13px;padding:20px">' + json + '</pre>');
+    w.document.title = 'klever_backup';
+    showToast('Откройте вкладку → Ctrl+S для сохранения', 'green');
+  }
 };
 
 // === UTILS ===
